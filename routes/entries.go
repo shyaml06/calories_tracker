@@ -116,38 +116,34 @@ func UpdateEntry(c *gin.Context) {
 	entryID := c.Params.ByName("id")
 	docID, _ := primitive.ObjectIDFromHex(entryID)
 	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+	defer cancel()
+
 	var entry models.Entry
-	if err := entryCollection.FindOne(ctx, bson.M{"_id": docID}).Decode(&entry); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		fmt.Println(err)
+	if err := c.BindJSON(&entry); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	//validate := validator.New()
 
 	validationerr := validate.Struct(entry)
 	if validationerr != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": validationerr.Error()})
-		fmt.Println(validationerr)
+		c.JSON(http.StatusBadRequest, gin.H{"error": validationerr.Error()})
 		return
-
 	}
+
 	result, err := entryCollection.ReplaceOne(ctx, bson.M{"_id": docID}, bson.M{
 		"dish":        entry.Dish,
 		"fat":         entry.Fat,
 		"ingredients": entry.Ingredients,
 		"calories":    entry.Calories,
 	})
-
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		fmt.Println(err)
 		return
-
 	}
-	defer cancel()
-	c.JSON(http.StatusOK, result)
 
+	c.JSON(http.StatusOK, result)
 }
+
 func UpdateIngredient(c *gin.Context) {
 	entryID := c.Params.ByName("id")
 	docID, _ := primitive.ObjectIDFromHex(entryID)
